@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  walletAddress String @unique
+  role      String   @default("PATIENT") // PATIENT, DOCTOR, RESEARCHER
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patientProfile PatientProfile?
+  doctorProfile  DoctorProfile?
+}
+
+model PatientProfile {
+  id String @id @default(uuid())
+  user User @relation(fields: [userId], references: [id])
+  userId String @unique
+  
+  name String
+  age Int
+  gender String
+  bloodGroup String
+  allergies String // Comma separated
+  chronicConditions String? // Added for Emergency Access
+  emergencyContact String
+  
+  medicalRecords MedicalRecord[]
+  consents       Consent[]
+}
+
+model EmergencyAccessLog {
+  id        String   @id @default(uuid())
+  patientId String
+  accessedBy String // Renamed from doctorId to allow generic access logging
+  reason    String
+  timestamp DateTime @default(now())
+}
+
+model DoctorProfile {
+  id String @id @default(uuid())
+  user User @relation(fields: [userId], references: [id])
+  userId String @unique
+
+  name String
+  specialization String
+  licenseNumber String
+  hospital String
+  consents Consent[]
+}
+
+model MedicalRecord {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   PatientProfile @relation(fields: [patientId], references: [userId])
+  
+  ipfsHash  String
+  recordType String // PRESCRIPTION, LAB_REPORT, DIAGNOSIS
+  date      DateTime @default(now())
+}
+
+model Consent {
+  id        String   @id @default(uuid())
+  
+  patientId String
+  patient   PatientProfile @relation(fields: [patientId], references: [userId])
+  
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [userId])
+  
+  status    String   @default("GRANTED") // GRANTED, REVOKED
+  createdAt DateTime @default(now())
+
+  @@unique([patientId, doctorId])
+}
+
+model MarketplaceStudy {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  price       String
+  currency    String   @default("NB")
+  participants Int     @default(0)
+  creatorId   String?  // Optional for legacy seeded data
+  createdAt   DateTime @default(now())
+  
+  purchases   DataPurchase[]
+}
+
+model DataPurchase {
+  id        String   @id @default(uuid())
+  studyId   String
+  study     MarketplaceStudy @relation(fields: [studyId], references: [id])
+  buyerId   String
+  txHash    String   @default(uuid())
+  createdAt DateTime @default(now())
+}
